@@ -39,7 +39,7 @@ ENV CUDA_VISIBLE_DEVICES="0"
 # Copy the rest of the application
 COPY . .
 
-# Create FINAL working handler with correct SoniTranslate class
+# Create method explorer handler to find correct method name
 COPY <<EOF /app/handler.py
 import runpod
 import os
@@ -83,35 +83,30 @@ def handler(event):
             from soni_translate.logging_setup import logger, configure_logging_libs
             configure_logging_libs()
             
-            # Import the CORRECT class name
+            # Import the class
             from app_rvc import SoniTranslate
             
             # Create SoniTranslate instance  
             soni_translator = SoniTranslate()
             
-            # Process the video using the media_file method
-            result = soni_translator.media_file(
-                media_file=video_input,
-                source_language=source_language,
-                target_language=target_language,
-                speaker_voice=speaker_voice,
-                output_type=f"video ({output_type})",
-                whisper_model_default="large-v3",
-                compute_type="int8",
-                batch_size=16,
-                is_gui=False,
-                progress=None
-            )
+            # EXPLORE available methods
+            available_methods = [method for method in dir(soni_translator) if not method.startswith('_')]
+            
+            # Look for likely candidates
+            media_methods = [method for method in available_methods if 'media' in method.lower()]
+            process_methods = [method for method in available_methods if any(word in method.lower() for word in ['process', 'translate', 'run', 'execute', 'convert'])]
             
             return {
-                "status": "success",
-                "message": "Video translation completed successfully",
-                "result": {
-                    "translated_video": result,
-                    "source_language": source_language,
+                "status": "debug_methods",
+                "message": "Successfully created SoniTranslate instance - exploring methods",
+                "available_methods": available_methods,
+                "media_related_methods": media_methods,
+                "process_related_methods": process_methods,
+                "class_type": str(type(soni_translator)),
+                "input_received": {
+                    "video_input": video_input,
                     "target_language": target_language,
-                    "output_type": output_type,
-                    "video_input": video_input
+                    "hf_token_provided": bool(hf_token)
                 }
             }
             
