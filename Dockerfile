@@ -164,5 +164,8 @@ EOF
 # Expose port (for testing)
 EXPOSE 8000
 
+# Additional force measures - ensure no cache conflicts
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
 # Default command
 CMD ["python", "/app/handler.py"]
