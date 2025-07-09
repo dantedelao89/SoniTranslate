@@ -39,7 +39,7 @@ ENV CUDA_VISIBLE_DEVICES="0"
 # Copy the rest of the application
 COPY . .
 
-# Create improved handler for RunPod serverless
+# Create debug handler to find correct function names
 COPY <<EOF /app/handler.py
 import runpod
 import os
@@ -78,49 +78,53 @@ def handler(event):
         speaker_voice = input_data.get("speaker_voice", "auto")
         output_type = input_data.get("output_type", "mp4")
         
-        # Import SoniTranslate modules
+        # Try different approaches to find the right function
         try:
-            from soni_translate.logging_setup import logger, configure_logging_libs
-            configure_logging_libs()
+            # Approach 1: Try importing the main app directly
+            import app_rvc
             
-            # Import main processing class
-            from app_rvc import SoniTranslateClass
-            
-            # Create SoniTranslate instance
-            soni_translator = SoniTranslateClass()
-            
-            # Process the video
-            result = soni_translator.media_file(
-                media_file=video_input,
-                source_language=source_language,
-                target_language=target_language,
-                speaker_voice=speaker_voice,
-                output_type=f"video ({output_type})",
-                whisper_model_default="large-v3",
-                compute_type="int8",
-                batch_size=16,
-                is_gui=False,
-                progress=None
-            )
+            # Check what's available in the module
+            available_functions = [name for name in dir(app_rvc) if not name.startswith('_')]
             
             return {
-                "status": "success",
-                "message": "Video translation completed",
-                "result": {
-                    "translated_video": result,
-                    "source_language": source_language,
+                "status": "debug",
+                "message": "Successfully imported app_rvc module",
+                "available_functions": available_functions,
+                "input_received": {
+                    "video_input": video_input,
                     "target_language": target_language,
-                    "output_type": output_type
+                    "hf_token_provided": bool(hf_token)
                 }
             }
             
         except ImportError as e:
-            # If import fails, try alternative approach
-            return {
-                "status": "error", 
-                "message": f"Failed to import SoniTranslate modules: {str(e)}",
-                "debug": "Modules may not be properly installed or configured"
-            }
+            # Approach 2: Try importing specific modules
+            try:
+                from soni_translate.logging_setup import logger, configure_logging_libs
+                configure_logging_libs()
+                
+                # Try to find the main processing function
+                return {
+                    "status": "debug", 
+                    "message": "Found soni_translate module but need to find main function",
+                    "import_error": str(e),
+                    "next_step": "Need to identify correct function name"
+                }
+                
+            except ImportError as e2:
+                return {
+                    "status": "error",
+                    "message": "Could not import any SoniTranslate modules",
+                    "import_errors": {
+                        "app_rvc": str(e),
+                        "soni_translate": str(e2)
+                    },
+                    "debug_info": {
+                        "python_path": sys.path,
+                        "current_dir": os.getcwd(),
+                        "files_in_app": os.listdir("/app") if os.path.exists("/app") else "No /app directory"
+                    }
+                }
             
     except Exception as e:
         # Capture full error details
