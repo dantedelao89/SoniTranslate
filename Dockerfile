@@ -39,7 +39,7 @@ ENV CUDA_VISIBLE_DEVICES="0"
 # Copy the rest of the application
 COPY . .
 
-# Create FINAL WORKING handler with correct method
+# Create comprehensive TTS and parameter explorer
 COPY <<EOF /app/handler.py
 import runpod
 import os
@@ -48,6 +48,7 @@ import tempfile
 import subprocess
 import traceback
 import logging
+import inspect
 
 # Add the current directory to Python path
 sys.path.append("/app")
@@ -73,11 +74,6 @@ def handler(event):
         if hf_token:
             os.environ["YOUR_HF_TOKEN"] = hf_token
         
-        # Optional parameters with defaults
-        source_language = input_data.get("source_language", "auto")
-        speaker_voice = input_data.get("speaker_voice", "auto")
-        output_type = input_data.get("output_type", "mp4")
-        
         # Import SoniTranslate modules
         try:
             from soni_translate.logging_setup import logger, configure_logging_libs
@@ -89,30 +85,52 @@ def handler(event):
             # Create SoniTranslate instance  
             soni_translator = SoniTranslate()
             
-            # Process the video using the CORRECT method
-            result = soni_translator.multilingual_media_conversion(
-                media_file=video_input,
-                source_language=source_language,
-                target_language=target_language,
-                speaker_voice=speaker_voice,
-                output_type=f"video ({output_type})",
-                whisper_model_default="large-v3",
-                compute_type="int8",
-                batch_size=16,
-                is_gui=False,
-                progress=None
-            )
+            # EXPLORE TTS and Speaker related methods/attributes
+            tts_methods = [method for method in dir(soni_translator) if any(word in method.lower() for word in ['tts', 'voice', 'speaker', 'neural'])]
+            
+            # Check for voice-related attributes
+            voice_info = {}
+            if hasattr(soni_translator, 'get_tts_voice_list'):
+                try:
+                    voice_info['tts_voice_list_method'] = "Available"
+                except:
+                    voice_info['tts_voice_list_method'] = "Method exists but failed to call"
+            
+            if hasattr(soni_translator, 'tts_voices'):
+                try:
+                    voice_info['tts_voices_attr'] = str(type(soni_translator.tts_voices))
+                except:
+                    voice_info['tts_voices_attr'] = "Attribute exists but failed to access"
+            
+            # INSPECT the multilingual_media_conversion method signature
+            method = getattr(soni_translator, 'multilingual_media_conversion')
+            signature = inspect.signature(method)
+            
+            # Get parameter details
+            params_info = {}
+            for param_name, param in signature.parameters.items():
+                params_info[param_name] = {
+                    "default": str(param.default) if param.default != inspect.Parameter.empty else "No default",
+                    "annotation": str(param.annotation) if param.annotation != inspect.Parameter.empty else "No annotation",
+                    "kind": str(param.kind)
+                }
+            
+            # Look for speaker/voice parameters specifically
+            speaker_params = {k: v for k, v in params_info.items() if any(word in k.lower() for word in ['speaker', 'voice', 'tts', 'neural'])}
             
             return {
-                "status": "success",
-                "message": "Video translation completed successfully!",
-                "result": {
-                    "translated_video": result,
-                    "source_language": source_language,
-                    "target_language": target_language,
-                    "output_type": output_type,
+                "status": "debug_comprehensive",
+                "message": "Comprehensive exploration of TTS and method parameters",
+                "method_signature": str(signature),
+                "all_parameters": params_info,
+                "speaker_voice_parameters": speaker_params,
+                "tts_related_methods": tts_methods,
+                "voice_info": voice_info,
+                "target_voice": "es-MX-JorgeNeural-Male",
+                "input_received": {
                     "video_input": video_input,
-                    "method_used": "multilingual_media_conversion"
+                    "target_language": target_language,
+                    "hf_token_provided": bool(hf_token)
                 }
             }
             
@@ -125,8 +143,7 @@ def handler(event):
                 "debug_info": {
                     "video_input": video_input,
                     "target_language": target_language,
-                    "hf_token_provided": bool(hf_token),
-                    "method_attempted": "multilingual_media_conversion"
+                    "hf_token_provided": bool(hf_token)
                 }
             }
             
