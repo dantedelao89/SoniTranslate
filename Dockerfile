@@ -1,5 +1,5 @@
-# Base image with CUDA 11.8 support (matching SoniTranslate requirements)
-FROM pytorch/pytorch:2.0.1-cuda11.8-cudnn8-devel
+# Base image with CUDA support (using available PyTorch image)
+FROM pytorch/pytorch:2.0.1-cuda11.7-cudnn8-devel
 
 # Set working directory
 WORKDIR /app
@@ -18,9 +18,7 @@ COPY requirements_base.txt requirements_extra.txt ./
 # Install Python dependencies in correct order
 RUN pip install --no-cache-dir pip==23.1.2
 
-# Install PyTorch with CUDA 11.8 (matching SoniTranslate requirements)
-RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-
+# Install PyTorch with CUDA 11.7 (matching base image)
 RUN pip install --no-cache-dir -r requirements_base.txt
 RUN pip install --no-cache-dir -r requirements_extra.txt
 RUN pip install --no-cache-dir onnxruntime-gpu
