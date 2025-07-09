@@ -4,6 +4,10 @@ FROM pytorch/pytorch:2.0.1-cuda11.7-cudnn8-devel
 # Set working directory
 WORKDIR /app
 
+# Prevent interactive prompts during apt installations
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     ffmpeg \
@@ -18,7 +22,6 @@ COPY requirements_base.txt requirements_extra.txt ./
 # Install Python dependencies in correct order
 RUN pip install --no-cache-dir pip==23.1.2
 
-# Install PyTorch with CUDA 11.7 (matching base image)
 RUN pip install --no-cache-dir -r requirements_base.txt
 RUN pip install --no-cache-dir -r requirements_extra.txt
 RUN pip install --no-cache-dir onnxruntime-gpu
@@ -29,8 +32,7 @@ RUN pip install --no-cache-dir TTS==0.21.1 --no-deps
 
 RUN pip install --no-cache-dir runpod
 
-# Set environment variables including Hugging Face token
-ENV YOUR_HF_TOKEN=""
+# Set environment variables (token will be added via RunPod Environment Variables)
 ENV PYTHONPATH="/app"
 ENV CUDA_VISIBLE_DEVICES="0"
 
@@ -63,7 +65,7 @@ def handler(event):\n\
                 "message": "video_url or video_file is required"\n\
             }\n\
         \n\
-        # Set required environment variables\n\
+        # Check for HF token from environment variables\n\
         hf_token = input_data.get("hf_token") or os.environ.get("YOUR_HF_TOKEN")\n\
         if hf_token:\n\
             os.environ["YOUR_HF_TOKEN"] = hf_token\n\
