@@ -39,7 +39,7 @@ ENV CUDA_VISIBLE_DEVICES="0"
 # Copy the rest of the application
 COPY . .
 
-# Create method explorer handler to find correct method name
+# Create FINAL WORKING handler with correct method
 COPY <<EOF /app/handler.py
 import runpod
 import os
@@ -89,24 +89,30 @@ def handler(event):
             # Create SoniTranslate instance  
             soni_translator = SoniTranslate()
             
-            # EXPLORE available methods
-            available_methods = [method for method in dir(soni_translator) if not method.startswith('_')]
-            
-            # Look for likely candidates
-            media_methods = [method for method in available_methods if 'media' in method.lower()]
-            process_methods = [method for method in available_methods if any(word in method.lower() for word in ['process', 'translate', 'run', 'execute', 'convert'])]
+            # Process the video using the CORRECT method
+            result = soni_translator.multilingual_media_conversion(
+                media_file=video_input,
+                source_language=source_language,
+                target_language=target_language,
+                speaker_voice=speaker_voice,
+                output_type=f"video ({output_type})",
+                whisper_model_default="large-v3",
+                compute_type="int8",
+                batch_size=16,
+                is_gui=False,
+                progress=None
+            )
             
             return {
-                "status": "debug_methods",
-                "message": "Successfully created SoniTranslate instance - exploring methods",
-                "available_methods": available_methods,
-                "media_related_methods": media_methods,
-                "process_related_methods": process_methods,
-                "class_type": str(type(soni_translator)),
-                "input_received": {
-                    "video_input": video_input,
+                "status": "success",
+                "message": "Video translation completed successfully!",
+                "result": {
+                    "translated_video": result,
+                    "source_language": source_language,
                     "target_language": target_language,
-                    "hf_token_provided": bool(hf_token)
+                    "output_type": output_type,
+                    "video_input": video_input,
+                    "method_used": "multilingual_media_conversion"
                 }
             }
             
@@ -119,7 +125,8 @@ def handler(event):
                 "debug_info": {
                     "video_input": video_input,
                     "target_language": target_language,
-                    "hf_token_provided": bool(hf_token)
+                    "hf_token_provided": bool(hf_token),
+                    "method_attempted": "multilingual_media_conversion"
                 }
             }
             
